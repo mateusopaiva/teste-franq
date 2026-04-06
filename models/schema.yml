@@ -5,70 +5,114 @@ sources:
     description: "Camada bruta do sistema transacional."
     tables:
       - name: transactions
-        description: "Tabela bruta de transações."
+        description: "Transações brutas."
       - name: merchants
-        description: "Tabela bruta de cadastro de merchants."
+        description: "Cadastro bruto de merchants."
       - name: settlements
-        description: "Tabela bruta de liquidações com lista de transaction_ids."
+        description: "Liquidações financeiras brutas."
 
 models:
   - name: stg_transactions
-    description: "Transações padronizadas a partir da source bruta, com exclusão de registros de teste."
+    description: "Transações padronizadas sem registros de teste."
+    meta:
+      grain: "uma linha por transaction_id"
     columns:
       - name: transaction_id
         description: "Identificador único da transação."
-        tests:
-          - not_null
-          - unique
+        tests: [not_null, unique]
+        meta:
+          semantic_type: identifier
+
       - name: merchant_id
-        description: "Identificador do merchant."
-        tests:
-          - not_null
+        description: "Merchant da transação."
+        tests: [not_null]
+        meta:
+          semantic_type: identifier
+
       - name: amount_brl
         description: "Valor bruto da transação em BRL."
+        meta:
+          semantic_type: metric
+          business_meaning: gross_transaction_amount
+
       - name: status
         description: "Status da transação."
+        meta:
+          semantic_type: dimension
+
+      - name: payment_method
+        description: "Método de pagamento."
+        meta:
+          semantic_type: dimension
+
+      - name: created_at
+        description: "Timestamp de criação da transação."
+        meta:
+          semantic_type: time_dimension
 
   - name: stg_merchants
     description: "Cadastro padronizado de merchants."
     columns:
       - name: merchant_id
         description: "Identificador único do merchant."
-        tests:
-          - not_null
-          - unique
+        tests: [not_null, unique]
+
       - name: merchant_name
         description: "Nome comercial do merchant."
 
   - name: stg_settlements
-    description: "Liquidações normalizadas em uma linha por transaction_id."
+    description: "Settlements normalizados após UNNEST."
+    meta:
+      grain: "uma linha por settlement_id + transaction_id"
     columns:
       - name: settlement_id
-        description: "Identificador da liquidação."
-        tests:
-          - not_null
+        description: "Identificador do settlement."
+        tests: [not_null]
+
       - name: transaction_id
-        description: "Identificador da transação associado à liquidação."
-        tests:
-          - not_null
+        description: "Transação associada ao settlement."
+        tests: [not_null]
+
+      - name: fee_amount_brl
+        description: "Valor de taxa do settlement em BRL."
+        meta:
+          semantic_type: metric
+          business_meaning: fee_revenue
+
+      - name: settlement_date
+        description: "Data do settlement."
+        meta:
+          semantic_type: time_dimension
 
   - name: int_transaction_settlements
-    description: "Modelo intermediário que seleciona a liquidação mais recente por transação."
+    description: "Seleciona o settlement mais recente por transaction_id."
+    meta:
+      grain: "uma linha por transaction_id"
     columns:
       - name: transaction_id
-        description: "Uma linha por transação após deduplicação."
-        tests:
-          - not_null
-          - unique
+        description: "Transação única após deduplicação."
+        tests: [not_null, unique]
 
-  - name: fct_revenue
-    description: "Fato de transações enriquecido com merchant e settlement, com uma linha por transaction_id."
+      - name: settlement_id
+        description: "Settlement escolhido para a transação."
+
+      - name: fee_amount_brl
+        description: "Taxa do settlement selecionado em BRL."
+
+  - name: revenue_report
+    description: "Modelo factual principal com uma linha por transaction_id."
+    meta:
+      grain: "uma linha por transaction_id"
+      ai_ready: true
+      default_model_for_llm: true
+      primary_time_dimension: transaction_date
     columns:
       - name: transaction_id
         description: "Identificador único da transação."
-        tests:
-          - not_null
-          - unique
+        tests: [not_null, unique]
+        meta:
+          semantic_type: identifier
+
       - name: merchant_id
         description: "Identificador do merchant."
         tests:
@@ -76,18 +120,80 @@ models:
           - relationships:
               to: ref('stg_merchants')
               field: merchant_id
+        meta:
+          semantic_type: identifier
+
+      - name: merchant_name
+        description: "Nome comercial do merchant."
+        meta:
+          semantic_type: dimension
+
+      - name: payment_method
+        description: "Método de pagamento da transação, como pix."
+        meta:
+          semantic_type: dimension
+
       - name: transaction_date
-        description: "Data da transação."
+        description: "Data principal para análises de negócio."
+        meta:
+          semantic_type: time_dimension
+
+      - name: amount_brl
+        description: "Valor bruto transacionado em BRL. Usar para volume transacionado."
+        meta:
+          semantic_type: metric
+          business_meaning: gross_transaction_volume
+          synonyms: ["volume", "tpv", "valor transacionado"]
+
+      - name: fee_amount_brl
+        description: "Valor de taxa em BRL. Usar para faturamento em taxas."
+        meta:
+          semantic_type: metric
+          business_meaning: fee_revenue
+          synonyms: ["taxas", "faturamento em taxas"]
+
       - name: revenue_impact_brl
-        description: "Impacto da transação na receita, tratando refund e chargeback como valores negativos."
+        description: "Impacto da transação na receita. Refund e chargeback entram negativos."
+        meta:
+          semantic_type: metric
+          business_meaning: revenue_impact
+          warning: "Não usar como substituto de fee_amount_brl."
+
+      - name: settlement_date
+        description: "Data de liquidação."
+        meta:
+          semantic_type: time_dimension
+          warning: "Usar apenas para perguntas sobre liquidação."
 
   - name: merchant_summary
-    description: "Resumo agregado por merchant com métricas de transação, receita, taxas e chargeback."
+    description: "Resumo agregado por merchant."
+    meta:
+      grain: "uma linha por merchant_id"
+      ai_ready: true
     columns:
       - name: merchant_id
-        description: "Identificador do merchant."
-        tests:
-          - not_null
-          - unique
+        description: "Identificador único do merchant."
+        tests: [not_null, unique]
+
+      - name: merchant_name
+        description: "Nome comercial do merchant."
+
+      - name: total_transactions
+        description: "Quantidade total de transações."
+        meta:
+          semantic_type: metric
+
+      - name: total_fees_brl
+        description: "Faturamento em taxas no nível do merchant."
+        meta:
+          semantic_type: metric
+          business_meaning: fee_revenue
+
+      - name: chargebacks
+        description: "Quantidade de chargebacks."
+
       - name: chargeback_rate
-        description: "Percentual de transações do merchant que resultaram em chargeback."
+        description: "Percentual de transações com chargeback."
+        meta:
+          semantic_type: metric
+          warning: "Já é uma taxa calculada; não somar."
