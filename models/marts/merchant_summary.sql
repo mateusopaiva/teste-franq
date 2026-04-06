@@ -1,13 +1,18 @@
-SELECT
+{{ config(materialized='table') }}
+
+select
     merchant_id,
     merchant_name,
     mcc_code,
-    COUNT(*) as total_transactions,
-    SUM(revenue_impact) as total_revenue,
-    SUM(fee_amount) as total_fees,
-    SUM(CASE WHEN status = 'chargeback' THEN 1 ELSE 0 END) as chargebacks,
-    SUM(CASE WHEN status = 'chargeback' THEN 1 ELSE 0 END) / COUNT(*) as chargeback_rate,
-    MIN(transaction_date) as first_transaction,
-    MAX(transaction_date) as last_transaction
-FROM {{ ref('revenue_report') }}
-GROUP BY 1, 2, 3
+    count(*) as total_transactions,
+    sum(revenue_impact_brl) as total_revenue_brl,
+    sum(coalesce(fee_amount_brl, 0)) as total_fees_brl,
+    sum(case when status = 'chargeback' then 1 else 0 end) as chargebacks,
+    safe_divide(
+        sum(case when status = 'chargeback' then 1 else 0 end),
+        count(*)
+    ) as chargeback_rate,
+    min(transaction_date) as first_transaction,
+    max(transaction_date) as last_transaction
+from {{ ref('fct_revenue') }}
+group by 1, 2, 3

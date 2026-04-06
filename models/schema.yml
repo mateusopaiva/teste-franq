@@ -1,14 +1,93 @@
 version: 2
+
 sources:
   - name: raw
+    description: "Camada bruta do sistema transacional."
     tables:
       - name: transactions
+        description: "Tabela bruta de transações."
       - name: merchants
+        description: "Tabela bruta de cadastro de merchants."
       - name: settlements
+        description: "Tabela bruta de liquidações com lista de transaction_ids."
+
 models:
   - name: stg_transactions
-    description: "staging transactions"
-  - name: revenue_report
-    description: "report for revenue"
+    description: "Transações padronizadas a partir da source bruta, com exclusão de registros de teste."
+    columns:
+      - name: transaction_id
+        description: "Identificador único da transação."
+        tests:
+          - not_null
+          - unique
+      - name: merchant_id
+        description: "Identificador do merchant."
+        tests:
+          - not_null
+      - name: amount_brl
+        description: "Valor bruto da transação em BRL."
+      - name: status
+        description: "Status da transação."
+
+  - name: stg_merchants
+    description: "Cadastro padronizado de merchants."
+    columns:
+      - name: merchant_id
+        description: "Identificador único do merchant."
+        tests:
+          - not_null
+          - unique
+      - name: merchant_name
+        description: "Nome comercial do merchant."
+
+  - name: stg_settlements
+    description: "Liquidações normalizadas em uma linha por transaction_id."
+    columns:
+      - name: settlement_id
+        description: "Identificador da liquidação."
+        tests:
+          - not_null
+      - name: transaction_id
+        description: "Identificador da transação associado à liquidação."
+        tests:
+          - not_null
+
+  - name: int_transaction_settlements
+    description: "Modelo intermediário que seleciona a liquidação mais recente por transação."
+    columns:
+      - name: transaction_id
+        description: "Uma linha por transação após deduplicação."
+        tests:
+          - not_null
+          - unique
+
+  - name: fct_revenue
+    description: "Fato de transações enriquecido com merchant e settlement, com uma linha por transaction_id."
+    columns:
+      - name: transaction_id
+        description: "Identificador único da transação."
+        tests:
+          - not_null
+          - unique
+      - name: merchant_id
+        description: "Identificador do merchant."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_merchants')
+              field: merchant_id
+      - name: transaction_date
+        description: "Data da transação."
+      - name: revenue_impact_brl
+        description: "Impacto da transação na receita, tratando refund e chargeback como valores negativos."
+
   - name: merchant_summary
-    description: "summary by merchant"
+    description: "Resumo agregado por merchant com métricas de transação, receita, taxas e chargeback."
+    columns:
+      - name: merchant_id
+        description: "Identificador do merchant."
+        tests:
+          - not_null
+          - unique
+      - name: chargeback_rate
+        description: "Percentual de transações do merchant que resultaram em chargeback."

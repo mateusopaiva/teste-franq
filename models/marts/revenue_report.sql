@@ -1,47 +1,69 @@
 {{
-  config(
-    materialized='table',
-    partition_by={
-      "field": "transaction_date",
-      "data_type": "date",
-      "granularity": "day"
-    }
-  )
+    config(
+        materialized='table',
+        partition_by={
+            "field": "transaction_date",
+            "data_type": "date",
+            "granularity": "day"
+        }
+    )
 }}
-WITH base AS (
-    SELECT
+
+with transactions as (
+
+    select *
+    from {{ ref('stg_transactions') }}
+
+),
+
+merchants as (
+
+    select *
+    from {{ ref('stg_merchants') }}
+
+),
+
+settlements as (
+
+    select *
+    from {{ ref('int_transaction_settlements') }}
+
+),
+
+final as (
+
+    select
         t.transaction_id,
         t.merchant_id,
-        m.trade_name as merchant_name,
+        m.merchant_name,
         m.mcc_code,
+        t.customer_id,
+        t.amount_cents,
         t.amount_brl,
         t.status,
         t.payment_method,
-        DATE(t.created_at) as transaction_date,
+        date(t.created_at) as transaction_date,
         t.created_at,
+        t.updated_at,
         s.settlement_id,
-        s.net_amount_cents / 100 as net_amount,
-        s.fee_amount_cents / 100 as fee_amount,
+        s.net_amount_brl,
+        s.fee_amount_brl,
         s.settlement_date,
-        s.paid_at
-    FROM {{ ref('stg_transactions') }} t
-    LEFT JOIN {{ source('raw', 'merchants') }} m
-        ON t.merchant_id = m.id
-    LEFT JOIN {{ source('raw', 'settlements') }} s
-        ON t.transaction_id IN UNNEST(s.transaction_ids)
-    WHERE t.status IN ('captured', 'refunded', 'chargeback')
+        s.paid_at,
+        case
+            when t.status = 'captured' then t.amount_brl
+            when t.status = 'refunded' then -t.amount_brl
+            when t.status = 'chargeback' then -t.amount_brl
+            else 0
+        end as revenue_impact_brl
+    from transactions t
+    left join merchants m
+        on t.merchant_id = m.merchant_id
+    left join settlements s
+        on t.transaction_id = s.transaction_id
+    where t.status in ('captured', 'refunded', 'chargeback')
+
 )
-SELECT
-    *,
-    CASE
-        WHEN status = 'captured' THEN amount_brl
-        WHEN status = 'refunded' THEN -amount_brl
-        WHEN status = 'chargeback' THEN -amount_brl
- 
-    END as revenue_impact,
-    ROW_NUMBER() OVER (
-        PARTITION BY transaction_id
-        ORDER BY settlement_date DESC
-    ) as rn
-FROM base
-QUALIFY rn = 1
+
+select *
+from final

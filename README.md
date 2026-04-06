@@ -256,16 +256,18 @@ Não fornece contexto suficiente para analistas ou sistemas automatizados.
 
 ---
 
-## Priorização
+## Refatoração seletiva
 
-Os três problemas escolhidos para refatoração foram:
+Para a implementação em código, priorizei os três problemas com maior impacto combinado em confiabilidade, custo e capacidade de evolução do projeto:
 
-1. Join com `IN UNNEST` (impacto direto em custo e duplicidade)
-2. Uso de `ROW_NUMBER` mascarando inconsistência
-3. Ausência de testes e documentação
+1. Join com `IN UNNEST` no `revenue_report`
+2. Duplicidade resolvida apenas com `ROW_NUMBER` no mart final
+3. Ausência de testes e documentação no `schema.yml`
 
-Esses pontos foram priorizados por afetarem diretamente:
+Escolhi esses três porque eles atacam diretamente as dores descritas no case:
 
-* Confiabilidade dos dados
-* Custo de infraestrutura
-* Capacidade de uso analítico e por IA
+- os números não batem
+- o custo do BigQuery aumentou
+- o time quer preparar a base para consumo por IA
+
+Outros pontos também são relevantes, como incrementalidade e maior enriquecimento semântico, mas preferi concentrar a refatoração inicial naquilo que melhora a estrutura central do pipeline e reduz o risco de inconsistência analítica.
