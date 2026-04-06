@@ -56,9 +56,11 @@ models:
       - name: merchant_id
         description: "Identificador único do merchant."
         tests: [not_null, unique]
-
-      - name: merchant_name
-        description: "Nome comercial do merchant."
+        
+    - name: merchant_name
+      description: "Nome comercial do merchant."
+      meta:
+        semantic_type: dimension
 
   - name: stg_settlements
     description: "Settlements normalizados após UNNEST."
@@ -69,9 +71,13 @@ models:
         description: "Identificador do settlement."
         tests: [not_null]
 
-      - name: transaction_id
-        description: "Transação associada ao settlement."
-        tests: [not_null]
+    - name: transaction_id
+      description: "Transação associada ao settlement."
+      tests:
+        - not_null
+        - relationships:
+            to: ref('stg_transactions')
+            field: transaction_id
 
       - name: fee_amount_brl
         description: "Valor de taxa do settlement em BRL."
@@ -91,7 +97,12 @@ models:
     columns:
       - name: transaction_id
         description: "Transação única após deduplicação."
-        tests: [not_null, unique]
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('stg_transactions')
+              field: transaction_id
 
       - name: settlement_id
         description: "Settlement escolhido para a transação."
@@ -191,6 +202,8 @@ models:
 
       - name: chargebacks
         description: "Quantidade de chargebacks."
+        meta:
+          semantic_type: metric
 
       - name: chargeback_rate
         description: "Percentual de transações com chargeback."

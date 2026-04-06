@@ -11,6 +11,8 @@ A principal preocupação desta camada é deixar explícitos:
 * a dimensão temporal correta para cada tipo de pergunta
 * quais modelos são adequados para consulta final e quais são apenas modelos técnicos
 
+Essa documentação foi estruturada para reduzir ambiguidade na geração de SQL por agentes de IA, aumentando a confiabilidade das respostas.
+
 ---
 
 ## Princípios desta camada semântica
@@ -34,7 +36,7 @@ Esse é o principal modelo factual para perguntas transacionais e análises com 
 
 * Qual o volume de transações Pix do merchant X no último mês?
 * Quanto foi transacionado por merchant em determinado período?
-* Quanto a empresa faturou em taxas na última semana?
+* Quanto a empresa faturou em taxas na última semana, considerando as taxas cobradas nas transações?
 * Quantas transações possuem status chargeback em determinado intervalo?
 * Qual o impacto de refunds e chargebacks na receita?
 
@@ -162,7 +164,7 @@ Um agente pode consultar `stg_settlements` diretamente sem considerar que ali ai
 **Como prevenir**
 
 * Diferenciação clara entre camadas (staging, intermediate e mart)
-* Indicação de que modelos factuais devem ser priorizados
+* Indicação clara de que modelos factuais devem ser priorizados para perguntas transacionais
 
 ---
 
@@ -224,4 +226,4 @@ A refatoração e o enriquecimento semântico realizados tornam os modelos mais 
 * indicar o modelo correto para cada tipo de pergunta
 * reduzir ambiguidades de tempo, agregação e interpretação
 
-Essa abordagem cria uma base sólida para evolução futura rumo a uma camada semântica mais governada e escalável.
+Essa abordagem cria uma base sólida, confiável e interpretável, preparada para evolução futura rumo a uma camada semântica mais governada e escalável.

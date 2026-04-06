@@ -14,5 +14,5 @@ select
     ) as chargeback_rate,
     min(transaction_date) as first_transaction,
     max(transaction_date) as last_transaction
-from {{ ref('fct_revenue') }}
+from {{ ref('revenue_report') }}
 group by 1, 2, 3
