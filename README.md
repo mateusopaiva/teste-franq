@@ -271,3 +271,148 @@ Escolhi esses três porque eles atacam diretamente as dores descritas no case:
 - o time quer preparar a base para consumo por IA
 
 Outros pontos também são relevantes, como incrementalidade e maior enriquecimento semântico, mas preferi concentrar a refatoração inicial naquilo que melhora a estrutura central do pipeline e reduz o risco de inconsistência analítica.
+
+## Processo de abordagem
+
+A abordagem adotada começou pela leitura completa do projeto legado, com foco em entender o fluxo de dados ponta a ponta.
+
+Inicialmente, busquei responder três perguntas principais:
+
+* Por que os números não batem?
+* O que pode estar gerando aumento de custo?
+* O que impede esse modelo de ser utilizado por IA?
+
+A partir dessa análise, identifiquei padrões problemáticos como:
+
+* joins com `IN UNNEST`
+* uso de `ROW_NUMBER` para mascarar duplicidade
+* ausência de testes e documentação
+
+A priorização foi guiada pelo impacto direto no negócio, considerando:
+
+1. confiabilidade dos dados
+2. custo de processamento
+3. clareza semântica
+
+---
+
+## Principais decisões de modelagem
+
+### Refatoração do modelo `revenue_report`
+
+Optei por refatorar o modelo existente `revenue_report` em vez de criar um novo modelo factual.
+
+A decisão foi tomada para:
+
+* evitar aumento desnecessário de complexidade
+* manter continuidade com o modelo existente
+* focar na correção dos problemas estruturais
+
+A refatoração transformou o modelo em uma tabela fato confiável, com:
+
+* grain definido (uma linha por `transaction_id`)
+* remoção do join com `IN UNNEST`
+* deduplicação tratada na camada intermediate
+* separação clara entre staging, intermediate e mart
+
+---
+
+### Separação por camadas
+
+A modelagem foi reorganizada em três níveis:
+
+* staging: padronização dos dados
+* intermediate: regras de relacionamento e deduplicação
+* mart: camada final de consumo
+
+Essa separação melhora a legibilidade, manutenção e confiabilidade do pipeline.
+
+---
+
+### Normalização de settlements
+
+O relacionamento entre transações e settlements foi reestruturado, removendo o uso de `IN UNNEST` no modelo final.
+
+A normalização permitiu:
+
+* reduzir custo computacional
+* tornar o join determinístico
+* controlar corretamente a duplicidade
+
+---
+
+## Uso de IA
+
+A IA foi utilizada como ferramenta de apoio ao longo do processo, principalmente para:
+
+### Estruturação inicial
+
+Auxiliou na identificação de padrões problemáticos e organização das ideias, mas todas as conclusões foram validadas manualmente.
+
+### Refatoração
+
+Ajudou na geração inicial de estruturas de modelos, mas foi necessário ajustar:
+
+* definição correta de grain
+* controle de duplicidade
+* regras de negócio implícitas
+
+### Camada semântica
+
+A IA contribuiu na organização da documentação, porém foi necessário refinar manualmente:
+
+* distinção entre métricas
+* uso correto dos modelos
+* identificação de armadilhas reais
+
+### Limitações observadas
+
+A IA mostrou limitações principalmente em:
+
+* entender impacto real de duplicidade
+* interpretar regras de negócio
+* priorizar corretamente os problemas
+
+Por isso, todas as decisões finais foram baseadas em análise crítica.
+
+---
+
+## O que faria com mais tempo
+
+Se tivesse mais tempo, priorizaria os seguintes pontos:
+
+### 1. Incrementalidade
+
+Implementaria materialização incremental no modelo factual para reduzir custo e melhorar performance.
+
+### 2. Testes de negócio
+
+Adicionaria validações mais avançadas, como:
+
+* consistência de taxas
+* comportamento esperado de chargebacks
+* validações temporais
+
+### 3. Governança de métricas
+
+Criaria uma camada formal de métricas com definições claras e centralizadas.
+
+### 4. Evolução da camada semântica
+
+Expandiria o mapeamento de linguagem natural e criaria um dicionário de negócio mais completo.
+
+### 5. Observabilidade
+
+Implementaria monitoramento de qualidade e alertas de falha.
+
+### 6. Otimização de custo
+
+Analisaria estratégias de particionamento, clustering e redução de leitura desnecessária.
+
+---
+
+## Conclusão
+
+A refatoração priorizou a correção de problemas estruturais críticos, mantendo o projeto simples e evolutivo.
+
+O resultado é uma base mais confiável, com menor custo operacional e preparada para consumo analítico e por IA.
