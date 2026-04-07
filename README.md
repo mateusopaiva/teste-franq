@@ -69,9 +69,9 @@ Se uma transação tiver múltiplos settlements válidos, o modelo descarta info
 
 **Como corrigir**
 
-* Resolver duplicidade na origem (modelo intermediate)
-* Definir regra clara de negócio (ex: settlement mais recente, settlement pago, etc.)
-* Garantir grain consistente antes do mart
+* Remover o `ROW_NUMBER` do mart final (`revenue_report`) e resolver a duplicidade antes, na camada intermediate
+* Definir regra clara de negócio para a deduplicação (ex: escolher o settlement mais recente/pago)
+* Garantir grain consistente antes do mart (ex: 1 linha por `transaction_id`)
 
 ---
 

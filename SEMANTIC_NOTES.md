@@ -36,7 +36,7 @@ Esse é o principal modelo factual para perguntas transacionais e análises com 
 
 * Qual o volume de transações Pix do merchant X no último mês?
 * Quanto foi transacionado por merchant em determinado período?
-* Quanto a empresa faturou em taxas na última semana, considerando as taxas cobradas nas transações?
+* Quanto a empresa faturou em taxas na última semana, considerando as taxas registradas nos settlements associados às transações?
 * Quantas transações possuem status chargeback em determinado intervalo?
 * Qual o impacto de refunds e chargebacks na receita?
 
